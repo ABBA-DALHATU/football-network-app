@@ -1,100 +1,129 @@
+import Link from "next/link";
 import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { ArrowRight, Building, Home, MessageSquare, User } from "lucide-react";
 
-export default function Home() {
+export default function LandingPage() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="flex flex-col min-h-screen">
+      <header className="border-b">
+        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Building className="h-6 w-6 text-primary" />
+            <span className="text-xl font-bold">StudentNest</span>
+          </div>
+          <div className="flex items-center gap-4">
+            <Link href="/auth/sign-in">
+              <Button variant="ghost">Login</Button>
+            </Link>
+            <Link href="/auth/sign-in">
+              <Button>Sign Up</Button>
+            </Link>
+          </div>
         </div>
+      </header>
+
+      <main className="flex-1">
+        <section className="py-20 px-4">
+          <div className="container mx-auto max-w-5xl">
+            <div className="flex flex-col md:flex-row items-center gap-12">
+              <div className="flex-1 space-y-6">
+                <h1 className="text-4xl md:text-5xl font-bold leading-tight">
+                  Find Your Perfect Student Housing
+                </h1>
+                <p className="text-lg text-muted-foreground">
+                  Connect with landlords, browse properties, and secure your
+                  ideal student accommodation all in one place.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <Link href="/auth/sign-in">
+                    <Button size="lg" className="w-full sm:w-auto">
+                      I'm a Student
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                  <Link href="/auth/sign-in">
+                    <Button
+                      size="lg"
+                      variant="outline"
+                      className="w-full sm:w-auto"
+                    >
+                      I'm a Landlord
+                      <ArrowRight className="ml-2 h-4 w-4" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+              <div className="flex-1">
+                <div className="relative w-full aspect-square md:aspect-[4/3] rounded-lg overflow-hidden shadow-xl">
+                  <Image
+                    src="/placeholder.svg?height=600&width=800"
+                    alt="Student housing"
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-16 px-4 bg-muted/50">
+          <div className="container mx-auto max-w-5xl">
+            <h2 className="text-3xl font-bold text-center mb-12">
+              How It Works
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="bg-background p-6 rounded-lg shadow-sm flex flex-col items-center text-center">
+                <div className="bg-primary/10 p-3 rounded-full mb-4">
+                  <User className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">
+                  Create an Account
+                </h3>
+                <p className="text-muted-foreground">
+                  Sign up as a student or landlord to access the platform's
+                  features.
+                </p>
+              </div>
+              <div className="bg-background p-6 rounded-lg shadow-sm flex flex-col items-center text-center">
+                <div className="bg-primary/10 p-3 rounded-full mb-4">
+                  <Home className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">
+                  Browse Properties
+                </h3>
+                <p className="text-muted-foreground">
+                  Search, filter, and find the perfect accommodation for your
+                  needs.
+                </p>
+              </div>
+              <div className="bg-background p-6 rounded-lg shadow-sm flex flex-col items-center text-center">
+                <div className="bg-primary/10 p-3 rounded-full mb-4">
+                  <MessageSquare className="h-6 w-6 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold mb-2">Connect & Secure</h3>
+                <p className="text-muted-foreground">
+                  Message landlords directly and secure your new home with ease.
+                </p>
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
+
+      <footer className="border-t py-8">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div className="flex items-center gap-2">
+              <Building className="h-5 w-5 text-primary" />
+              <span className="font-semibold">StudentNest</span>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              © {new Date().getFullYear()} StudentNest. All rights reserved.
+            </div>
+          </div>
+        </div>
       </footer>
     </div>
   );
