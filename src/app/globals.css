@@ -236,3 +236,29 @@
     z-index: 50;
   }
 }
+
+/* Add this at the end of the file to fix the page shifting issue */
+/* Fix for page shifting when modals/popovers open */
+html {
+  overflow-y: scroll;
+  scrollbar-gutter: stable;
+}
+
+/* Improve scrollbar appearance */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: hsl(var(--background));
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.3);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.5);
+}

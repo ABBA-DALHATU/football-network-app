@@ -17,25 +17,30 @@ import {
   Users,
   Building2,
 } from "lucide-react";
-
-type Role = "player" | "scout" | "club" | null;
+import { addUserRole } from "@/actions";
+import { Role } from "@prisma/client";
 
 export default function SelectRolePage() {
-  const [selectedRole, setSelectedRole] = useState<Role>(null);
+  const [selectedRole, setSelectedRole] = useState<Role>("PLAYER");
   const router = useRouter();
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
     if (selectedRole) {
       // In a real app, you would save the role to the user's profile
+
       console.log(`Selected role: ${selectedRole}`);
+
+      const res = await addUserRole(selectedRole);
       // Then redirect to the next step (e.g., complete profile)
-      router.push("callback");
+      if (res) {
+        router.push("callback");
+      }
     }
   };
 
   const roles = [
     {
-      id: "player",
+      id: "PLAYER",
       title: "Player",
       description:
         "Connect with clubs and scouts, showcase your skills, and find new opportunities in football.",
@@ -46,7 +51,7 @@ export default function SelectRolePage() {
       borderColor: "border-blue-200 dark:border-blue-800",
     },
     {
-      id: "scout",
+      id: "SCOUT",
       title: "Scout",
       description:
         "Discover talented players, connect with clubs, and build your network in the football industry.",
@@ -57,7 +62,7 @@ export default function SelectRolePage() {
       borderColor: "border-purple-200 dark:border-purple-800",
     },
     {
-      id: "club",
+      id: "CLUB",
       title: "Club",
       description:
         "Find players, connect with scouts, and build your team with our professional networking tools.",

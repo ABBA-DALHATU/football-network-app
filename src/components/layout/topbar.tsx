@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ModeToggle } from "../global/ModeToggle";
+import { UserButton } from "@clerk/nextjs";
 
 export function Topbar() {
   const { toggleSidebar } = useSidebar();
@@ -47,39 +48,7 @@ export function Topbar() {
             <span className="sr-only">Notifications</span>
             <span className="absolute right-1 top-1 h-2.5 w-2.5 rounded-full bg-primary animate-pulse"></span>
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full h-10 w-10"
-              >
-                <Avatar className="h-10 w-10 border-2 border-primary/20">
-                  <AvatarImage src="/placeholder.svg" alt="User" />
-                  <AvatarFallback className="bg-gradient-to-br from-primary to-primary/70 text-primary-foreground">
-                    U
-                  </AvatarFallback>
-                </Avatar>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
-              </DropdownMenuItem>
-              <DropdownMenuItem>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Account Settings</span>
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem className="text-red-500">
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Logout</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <UserButton />
         </div>
       </div>
     </header>

@@ -137,13 +137,16 @@ enum ConnectionStatus {
   REJECTED
 }
 
+
+
+
 model User {
   id            String   @id @default(uuid())
-  clerkId String @unique
+  clerkId       String   @unique
   email         String   @unique
-  fullName          String?
-  profileImageUrl  String? 
-  role          Role @default(NONE)
+  fullName      String?
+  profileImageUrl String?
+  role          Role     @default(NONE)
   bio           String?
   preferredFoot String? // Left, Right, Both
   formerClub    String?
@@ -158,8 +161,10 @@ model User {
   messagesSent   Message[] @relation("MessageSender")
   messagesReceived Message[] @relation("MessageReceiver")
   notifications  Notification[]
-  stats         Stat[] // Linked to a new model instead of JSON
+  stats         Stat?
+  likes         Like[]
 }
+
 
 model Post {
   id        String   @id @default(uuid())
@@ -167,12 +172,27 @@ model Post {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   content   String?
   imageUrl  String?
-  likes     Int      @default(0)
+  likes     Like[]   // Changed from Int to relation
   comments  Comment[]
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt()
 
   @@index([userId])
 }
+
+model Like {
+  id        String   @id @default(uuid())
+  userId    String
+  postId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, postId]) // A user can like a post only once
+}
+
+// Other models remain the same as in your schema
+
 
 model Comment {
   id        String   @id @default(uuid())
@@ -229,7 +249,7 @@ model Notification {
 
 model Stat {
   id        String   @id @default(uuid())
-  userId    String
+  userId    String   @unique
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   goals     Int      @default(0)
   assists   Int      @default(0)

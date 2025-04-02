@@ -7,9 +7,11 @@ export const metadata = {
 };
 
 export default function RootLayout({
+  params: { userId },
   children,
 }: {
   children: React.ReactNode;
+  params: { userId: string };
 }) {
-  return <AppLayout>{children}</AppLayout>;
+  return <AppLayout userId={userId}>{children}</AppLayout>;
 }
