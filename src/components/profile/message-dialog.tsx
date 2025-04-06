@@ -83,7 +83,7 @@ export function MessageDialog({
           <DialogTitle className="flex items-center gap-2">
             <Avatar className="h-6 w-6">
               <AvatarImage src={recipient.avatar || ""} alt={recipient.name} />
-              <AvatarFallback>{recipient.name.charAt(0)}</AvatarFallback>
+              <AvatarFallback>{recipient.name?.charAt(0)}</AvatarFallback>
             </Avatar>
             <span>Message {recipient.name}</span>
           </DialogTitle>

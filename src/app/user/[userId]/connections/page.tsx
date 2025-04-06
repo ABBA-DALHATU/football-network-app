@@ -1,47 +1,128 @@
-"use client"
+// app/connections/page.tsx
+"use client";
 
-import { useState } from "react"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ConnectionsList } from "@/components/connections/connections-list"
-import { RequestsList } from "@/components/connections/requests-list"
-import { Search, Users, UserPlus } from "lucide-react"
-import { generateConnections, generateRequests } from "@/lib/mock-data"
+import { useState, useEffect } from "react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { ConnectionsList } from "@/components/connections/connections-list";
+import { RequestsList } from "@/components/connections/requests-list";
+import { Search, Users, UserPlus } from "lucide-react";
+import { getConnections, getConnectionRequests } from "@/actions";
+import { Role } from "@prisma/client";
 
 export default function ConnectionsPage() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [roleFilter, setRoleFilter] = useState("all")
-  const [activeTab, setActiveTab] = useState("connections")
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<Role | "all">("all");
+  const [activeTab, setActiveTab] = useState("connections");
+  const [connections, setConnections] = useState<any[]>([]);
+  const [requests, setRequests] = useState({
+    incoming: [],
+    outgoing: [],
+  });
+  const [loading, setLoading] = useState({
+    connections: true,
+    requests: true,
+  });
+  const [error, setError] = useState({
+    connections: null,
+    requests: null,
+  });
 
-  // Generate mock data
-  const connections = generateConnections(15)
-  const requests = generateRequests(8)
+  useEffect(() => {
+    const loadConnections = async () => {
+      try {
+        setLoading(prev => ({ ...prev, connections: true }));
+        const result = await getConnections();
+        if (result.status === 200) {
+          setConnections(result.data);
+        } else {
+          setError(prev => ({ ...prev, connections: result.message }));
+        }
+      } catch (err) {
+        setError(prev => ({ ...prev, connections: "Failed to load connections" }));
+      } finally {
+        setLoading(prev => ({ ...prev, connections: false }));
+      }
+    };
+
+    const loadRequests = async () => {
+      try {
+        setLoading(prev => ({ ...prev, requests: true }));
+        const result = await getConnectionRequests();
+        if (result.status === 200) {
+          setRequests(result.data);
+        } else {
+          setError(prev => ({ ...prev, requests: result.message }));
+        }
+      } catch (err) {
+        setError(prev => ({ ...prev, requests: "Failed to load requests" }));
+      } finally {
+        setLoading(prev => ({ ...prev, requests: false }));
+      }
+    };
+
+    if (activeTab === "connections") {
+      loadConnections();
+    } else {
+      loadRequests();
+    }
+  }, [activeTab]);
 
   // Filter connections based on search query and role filter
   const filteredConnections = connections.filter((connection) => {
     const matchesSearch =
-      connection.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      connection.username.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesRole = roleFilter === "all" || connection.role === roleFilter
+      connection.user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      connection.user.email?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesRole = roleFilter === "all" || connection.user.role === roleFilter;
 
-    return matchesSearch && matchesRole
-  })
+    return matchesSearch && matchesRole;
+  });
 
   // Filter requests based on search query
   const filteredRequests = {
     incoming: requests.incoming.filter(
       (request) =>
-        request.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        request.username.toLowerCase().includes(searchQuery.toLowerCase()),
+        request.user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        request.user.email?.toLowerCase().includes(searchQuery.toLowerCase()),
     ),
     outgoing: requests.outgoing.filter(
       (request) =>
-        request.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        request.username.toLowerCase().includes(searchQuery.toLowerCase()),
+        request.user.fullName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        request.user.email?.toLowerCase().includes(searchQuery.toLowerCase()),
     ),
-  }
+  };
+
+  const handleConnectionRemoved = (connectionId: string) => {
+    setConnections(prev => prev.filter(c => c.id !== connectionId));
+  };
+
+  const handleRequestResponded = (requestId: string, accepted: boolean) => {
+    if (accepted) {
+      // Move the request to connections
+      const acceptedRequest = requests.incoming.find(r => r.id === requestId);
+      if (acceptedRequest) {
+        setConnections(prev => [...prev, {
+          id: requestId,
+          user: acceptedRequest.user,
+          mutualConnections: 0,
+          createdAt: new Date(),
+        }]);
+      }
+    }
+    setRequests(prev => ({
+      ...prev,
+      incoming: prev.incoming.filter(r => r.id !== requestId),
+    }));
+  };
+
+  const handleRequestCancelled = (requestId: string) => {
+    setRequests(prev => ({
+      ...prev,
+      outgoing: prev.outgoing.filter(r => r.id !== requestId),
+    }));
+  };
 
   return (
     <div className="max-w-4xl mx-auto pb-10">
@@ -89,17 +170,18 @@ export default function ConnectionsPage() {
               </div>
 
               {activeTab === "connections" && (
-                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                <Select 
+                  value={roleFilter} 
+                  onValueChange={(value: Role | "all") => setRoleFilter(value)}
+                >
                   <SelectTrigger className="w-[130px]">
                     <SelectValue placeholder="Filter by role" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Roles</SelectItem>
-                    <SelectItem value="Player">Players</SelectItem>
-                    <SelectItem value="Coach">Coaches</SelectItem>
-                    <SelectItem value="Scout">Scouts</SelectItem>
-                    <SelectItem value="Club">Clubs</SelectItem>
-                    <SelectItem value="Agent">Agents</SelectItem>
+                    <SelectItem value={Role.PLAYER}>Players</SelectItem>
+                    <SelectItem value={Role.SCOUT}>Scouts</SelectItem>
+                    <SelectItem value={Role.CLUB}>Clubs</SelectItem>
                   </SelectContent>
                 </Select>
               )}
@@ -107,15 +189,41 @@ export default function ConnectionsPage() {
           </div>
         </div>
 
-        <TabsContent value="connections" className="mt-0">
-          <ConnectionsList connections={filteredConnections} />
+        <TabsContent value="connections" className="mt-12">
+          {loading.connections ? (
+            <div className="flex justify-center py-8">
+              <p>Loading connections...</p>
+            </div>
+          ) : error.connections ? (
+            <div className="text-red-500 text-center py-8">
+              {error.connections}
+            </div>
+          ) : (
+            <ConnectionsList 
+              connections={filteredConnections} 
+              onConnectionRemoved={handleConnectionRemoved}
+            />
+          )}
         </TabsContent>
 
-        <TabsContent value="requests" className="mt-0">
-          <RequestsList requests={filteredRequests} />
+        <TabsContent value="requests" className="mt-12">
+          {loading.requests ? (
+            <div className="flex justify-center py-8">
+              <p>Loading requests...</p>
+            </div>
+          ) : error.requests ? (
+            <div className="text-red-500 text-center py-8">
+              {error.requests}
+            </div>
+          ) : (
+            <RequestsList 
+              requests={filteredRequests} 
+              onRequestResponded={handleRequestResponded}
+              onRequestCancelled={handleRequestCancelled}
+            />
+          )}
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }
-

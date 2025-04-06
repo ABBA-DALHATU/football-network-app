@@ -52,7 +52,7 @@ export function Sidebar({ userId }: { userId: string }) {
     },
     {
       title: "Profile",
-      href: `/user/${userId}/profile`,
+      href: `/user/${userId}/profile/${userId}`,
       icon: User,
       color: "text-amber-500",
       bgColor: "bg-amber-100 dark:bg-amber-900/30",

@@ -2,7 +2,7 @@
 
 import { db } from "@/lib/prismaClient";
 import { currentUser } from "@clerk/nextjs/server";
-import { Role } from "@prisma/client";
+import { ConnectionStatus, Role } from "@prisma/client";
 
 //   id            String   @id @default(uuid())
 //   email         String   @unique
@@ -284,4 +284,477 @@ export const addUserRole = async (role: Role) => {
   });
 
   return res;
+};
+
+
+
+// new sutff
+// app/actions/profile-actions.ts
+
+
+export const fetchProfileById = async (userId: string) => {
+  try {
+    const authUser = await currentUser();
+    const currentUserId = authUser?.id;
+
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      include: {
+        stats: true,
+        posts: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                fullName: true,
+                profileImageUrl: true,
+                role: true,
+              },
+            },
+            likes: true,
+            comments: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    fullName: true,
+                    profileImageUrl: true,
+                  },
+                },
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        },
+        sentConnections: {
+          where: { status: "ACCEPTED" },
+          include: { receiver: true },
+        },
+        receivedConnections: {
+          where: { status: "ACCEPTED" },
+          include: { sender: true },
+        },
+      },
+    });
+
+    if (!user) {
+      return { status: 404, message: "User not found" };
+    }
+
+    // Check connection status if not viewing own profile
+    let isConnected = false;
+    let mutualConnections = 0;
+
+    if (currentUserId && user.clerkId !== currentUserId) {
+      const connection = await db.connection.findFirst({
+        where: {
+          OR: [
+            { senderId: user.id, receiver: { clerkId: currentUserId } },
+            { sender: { clerkId: currentUserId }, receiverId: user.id },
+          ],
+          status: "ACCEPTED",
+        },
+      });
+      isConnected = !!connection;
+
+      // Calculate mutual connections
+      if (isConnected) {
+        const currentUserData = await db.user.findUnique({
+          where: { clerkId: currentUserId },
+          select: {
+            sentConnections: {
+              where: { status: "ACCEPTED" },
+              select: { receiverId: true },
+            },
+            receivedConnections: {
+              where: { status: "ACCEPTED" },
+              select: { senderId: true },
+            },
+          },
+        });
+
+        if (currentUserData) {
+          const currentUserConnections = [
+            ...currentUserData.sentConnections.map((c) => c.receiverId),
+            ...currentUserData.receivedConnections.map((c) => c.senderId),
+          ];
+
+          const profileConnections = [
+            ...user.sentConnections.map((c) => c.receiverId),
+            ...user.receivedConnections.map((c) => c.senderId),
+          ];
+
+          mutualConnections = currentUserConnections.filter((id) =>
+            profileConnections.includes(id)
+          ).length;
+        }
+      }
+    }
+
+    return {
+      status: 200,
+      data: {
+        user,
+        isOwnProfile: user.clerkId === currentUserId,
+        isConnected,
+        mutualConnections,
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching profile:", error);
+    return { status: 500, message: "Internal server error" };
+  }
+};
+
+
+// connection server actions
+export const sendConnectionRequest = async (receiverId: string) => {
+  try {
+    const authUser = await currentUser();
+    if (!authUser) {
+      return { status: 401, message: "Unauthorized" };
+    }
+
+    const sender = await db.user.findUnique({
+      where: { clerkId: authUser.id },
+    });
+    if (!sender) {
+      return { status: 404, message: "User not found" };
+    }
+
+    // Check if connection already exists
+    const existingConnection = await db.connection.findFirst({
+      where: {
+        OR: [
+          { senderId: sender.id, receiverId },
+          { senderId: receiverId, receiverId: sender.id },
+        ],
+      },
+    });
+
+    if (existingConnection) {
+      if (existingConnection.status === ConnectionStatus.PENDING) {
+        return { 
+          status: 400, 
+          message: "Connection request already pending" 
+        };
+      }
+      if (existingConnection.status === ConnectionStatus.ACCEPTED) {
+        return { 
+          status: 400, 
+          message: "Already connected with this user" 
+        };
+      }
+      // For rejected connections, we can update the status to PENDING again
+      await db.connection.update({
+        where: { id: existingConnection.id },
+        data: { status: ConnectionStatus.PENDING },
+      });
+      return { status: 200, message: "Connection request sent" };
+    }
+
+    // Create new connection request
+    await db.connection.create({
+      data: {
+        senderId: sender.id,
+        receiverId,
+        status: ConnectionStatus.PENDING,
+      },
+    });
+
+    // Create notification for the receiver
+    await db.notification.create({
+      data: {
+        userId: receiverId,
+        type: "CONNECTION_REQUEST",
+        content: `${sender.fullName} sent you a connection request`,
+      },
+    });
+
+    return { status: 201, message: "Connection request sent successfully" };
+  } catch (error) {
+    console.error("Error sending connection request:", error);
+    return { status: 500, message: "Internal server error" };
+  }
+};
+
+export const getConnections = async () => {
+  try {
+    const authUser = await currentUser();
+    if (!authUser) {
+      return { status: 401, message: "Unauthorized" };
+    }
+
+    const user = await db.user.findUnique({
+      where: { clerkId: authUser.id },
+    });
+    if (!user) {
+      return { status: 404, message: "User not found" };
+    }
+
+    const connections = await db.connection.findMany({
+      where: {
+        OR: [
+          { senderId: user.id, status: "ACCEPTED" },
+          { receiverId: user.id, status: "ACCEPTED" },
+        ],
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            fullName: true,
+            profileImageUrl: true,
+            role: true,
+            stats: true,
+          },
+        },
+        receiver: {
+          select: {
+            id: true,
+            fullName: true,
+            profileImageUrl: true,
+            role: true,
+            stats: true,
+          },
+        },
+      },
+    });
+
+    // Format connections to show the other user
+    const formattedConnections = connections.map((conn) => ({
+      id: conn.id,
+      user: conn.senderId === user.id ? conn.receiver : conn.sender,
+      mutualConnections: 0, // We'll calculate this later
+      createdAt: conn.createdAt,
+    }));
+
+    // Calculate mutual connections
+    const currentUserConnections = connections.map((c) => 
+      c.senderId === user.id ? c.receiverId : c.senderId
+    );
+
+    for (const connection of formattedConnections) {
+      const userConnections = await db.connection.findMany({
+        where: {
+          OR: [
+            { senderId: connection.user.id, status: "ACCEPTED" },
+            { receiverId: connection.user.id, status: "ACCEPTED" },
+          ],
+        },
+        select: {
+          senderId: true,
+          receiverId: true,
+        },
+      });
+
+      const otherUserConnections = userConnections.map((c) => 
+        c.senderId === connection.user.id ? c.receiverId : c.senderId
+      );
+
+      connection.mutualConnections = currentUserConnections.filter(id => 
+        otherUserConnections.includes(id)
+      ).length;
+    }
+
+    return { status: 200, data: formattedConnections };
+  } catch (error) {
+    console.error("Error fetching connections:", error);
+    return { status: 500, message: "Internal server error" };
+  }
+};
+
+export const getConnectionRequests = async () => {
+  try {
+    const authUser = await currentUser();
+    if (!authUser) {
+      return { status: 401, message: "Unauthorized" };
+    }
+
+    const user = await db.user.findUnique({
+      where: { clerkId: authUser.id },
+    });
+    if (!user) {
+      return { status: 404, message: "User not found" };
+    }
+
+    const incoming = await db.connection.findMany({
+      where: {
+        receiverId: user.id,
+        status: "PENDING",
+      },
+      include: {
+        sender: {
+          select: {
+            id: true,
+            fullName: true,
+            profileImageUrl: true,
+            role: true,
+            stats: true,
+          },
+        },
+      },
+    });
+
+    const outgoing = await db.connection.findMany({
+      where: {
+        senderId: user.id,
+        status: "PENDING",
+      },
+      include: {
+        receiver: {
+          select: {
+            id: true,
+            fullName: true,
+            profileImageUrl: true,
+            role: true,
+            stats: true,
+          },
+        },
+      },
+    });
+
+    return {
+      status: 200,
+      data: {
+        incoming: incoming.map(req => ({
+          id: req.id,
+          user: req.sender,
+          createdAt: req.createdAt,
+        })),
+        outgoing: outgoing.map(req => ({
+          id: req.id,
+          user: req.receiver,
+          createdAt: req.createdAt,
+        })),
+      },
+    };
+  } catch (error) {
+    console.error("Error fetching connection requests:", error);
+    return { status: 500, message: "Internal server error" };
+  }
+};
+
+export const respondToConnectionRequest = async (
+  requestId: string,
+  accept: boolean
+) => {
+  try {
+    const authUser = await currentUser();
+    if (!authUser) {
+      return { status: 401, message: "Unauthorized" };
+    }
+
+    const user = await db.user.findUnique({
+      where: { clerkId: authUser.id },
+    });
+    if (!user) {
+      return { status: 404, message: "User not found" };
+    }
+
+    // Verify the request belongs to the current user
+    const request = await db.connection.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!request || request.receiverId !== user.id) {
+      return { status: 403, message: "Not authorized to respond to this request" };
+    }
+
+    if (request.status !== "PENDING") {
+      return { status: 400, message: "Request has already been processed" };
+    }
+
+    const updatedRequest = await db.connection.update({
+      where: { id: requestId },
+      data: {
+        status: accept ? "ACCEPTED" : "REJECTED",
+      },
+    });
+
+    if (accept) {
+      // Create notification for the sender
+      await db.notification.create({
+        data: {
+          userId: request.senderId,
+          type: "CONNECTION_ACCEPTED",
+          content: `${user.fullName} accepted your connection request`,
+        },
+      });
+    }
+
+    return { status: 200, data: updatedRequest };
+  } catch (error) {
+    console.error("Error responding to connection request:", error);
+    return { status: 500, message: "Internal server error" };
+  }
+};
+
+export const removeConnection = async (connectionId: string) => {
+  try {
+    const authUser = await currentUser();
+    if (!authUser) {
+      return { status: 401, message: "Unauthorized" };
+    }
+
+    const user = await db.user.findUnique({
+      where: { clerkId: authUser.id },
+    });
+    if (!user) {
+      return { status: 404, message: "User not found" };
+    }
+
+    // Verify the connection belongs to the current user
+    const connection = await db.connection.findUnique({
+      where: { id: connectionId },
+    });
+
+    if (!connection || 
+        (connection.senderId !== user.id && connection.receiverId !== user.id)) {
+      return { status: 403, message: "Not authorized to remove this connection" };
+    }
+
+    await db.connection.delete({
+      where: { id: connectionId },
+    });
+
+    return { status: 200, message: "Connection removed successfully" };
+  } catch (error) {
+    console.error("Error removing connection:", error);
+    return { status: 500, message: "Internal server error" };
+  }
+};
+
+export const cancelConnectionRequest = async (requestId: string) => {
+  try {
+    const authUser = await currentUser();
+    if (!authUser) {
+      return { status: 401, message: "Unauthorized" };
+    }
+
+    const user = await db.user.findUnique({
+      where: { clerkId: authUser.id },
+    });
+    if (!user) {
+      return { status: 404, message: "User not found" };
+    }
+
+    // Verify the request belongs to the current user
+    const request = await db.connection.findUnique({
+      where: { id: requestId },
+    });
+
+    if (!request || request.senderId !== user.id) {
+      return { status: 403, message: "Not authorized to cancel this request" };
+    }
+
+    await db.connection.delete({
+      where: { id: requestId },
+    });
+
+    return { status: 200, message: "Request cancelled successfully" };
+  } catch (error) {
+    console.error("Error cancelling connection request:", error);
+    return { status: 500, message: "Internal server error" };
+  }
 };
